@@ -6,10 +6,10 @@ import java.awt.event.MouseListener;
 import java.util.ArrayList;
 import java.util.Random;
 
-public class CircleFollowsMouse extends JFrame {
+public class week2_CircleFollowsMouse extends JFrame {
     private CirclePanel circlePanel;
 
-    public CircleFollowsMouse() {
+    public week2_CircleFollowsMouse() {
         // 設定視窗標題
         setTitle("Circle Follows Mouse");
         
@@ -60,6 +60,42 @@ public class CircleFollowsMouse extends JFrame {
         }
     }
 
+    // 隕石類別
+    class Meteor {
+        double x;
+        double y;
+        double speed;
+        int size;
+        private final Random rand = new Random();
+
+        public Meteor(int panelWidth) {
+            respawn(panelWidth);
+        }
+
+        private void respawn(int panelWidth) {
+            int safeWidth = Math.max(panelWidth, 1);
+            this.size = 20 + rand.nextInt(21); // 大小 20-40
+            this.x = rand.nextDouble() * safeWidth;
+            this.y = -size - rand.nextInt(200); // 從畫面上方外開始
+            this.speed = 2 + rand.nextDouble() * 3; // 速度 2-5 像素/幀
+        }
+
+        public void update(int panelWidth, int panelHeight) {
+            y += speed;
+            // 掉出底部後回到上方隨機位置
+            if (y - size > panelHeight) {
+                respawn(panelWidth);
+            }
+        }
+
+        public void draw(Graphics2D g2d) {
+            g2d.setColor(Color.GRAY);
+            g2d.fillOval((int) x, (int) y, size, size);
+            g2d.setColor(Color.LIGHT_GRAY);
+            g2d.fillOval((int) x + size / 4, (int) y + size / 4, size / 3, size / 3);
+        }
+    }
+
     // 內部類別：繪製圓形的面板
     class CirclePanel extends JPanel implements MouseMotionListener, MouseListener {
         // 紅球當前位置（使用 double 以支援平滑移動）
@@ -78,7 +114,9 @@ public class CircleFollowsMouse extends JFrame {
         
         // 星點列表
         private ArrayList<Star> stars;
-        private Timer timer;
+        private Meteor meteor;
+        private long frameCount = 0;
+        private javax.swing.Timer gameTimer;
 
         public CirclePanel() {
             // 設定黑色背景
@@ -95,16 +133,21 @@ public class CircleFollowsMouse extends JFrame {
             for (int i = 0; i < 50; i++) {
                 stars.add(new Star(800, 600));
             }
+
+            // 初始化 1 顆隕石
+            meteor = new Meteor(800);
             
-            // 建立計時器，每 16ms 更新一次（約 60 FPS）
-            timer = new Timer(16, e -> {
-                updateAnimation();
+            // 使用 javax.swing.Timer，每 16ms 更新一次（約 60 FPS）
+            gameTimer = new javax.swing.Timer(16, e -> {
+                updateGame();
                 repaint();
             });
-            timer.start();
+            gameTimer.start();
         }
 
-        private void updateAnimation() {
+        private void updateGame() {
+            frameCount++;
+
             // 更新紅球位置，使用緩動公式實現慣性跟隨
             double dx = targetX - circleX;
             double dy = targetY - circleY;
@@ -116,6 +159,9 @@ public class CircleFollowsMouse extends JFrame {
             for (Star star : stars) {
                 star.update(getHeight());
             }
+
+            // 更新隕石位置
+            meteor.update(getWidth(), getHeight());
         }
 
         @Override
@@ -132,6 +178,14 @@ public class CircleFollowsMouse extends JFrame {
             for (Star star : stars) {
                 star.draw(g2d);
             }
+
+            // 繪製隕石
+            meteor.draw(g2d);
+
+            // 左上角顯示 frame count，確認遊戲持續更新
+            g2d.setColor(Color.GREEN);
+            g2d.setFont(new Font("Monospaced", Font.BOLD, 18));
+            g2d.drawString("Frame: " + frameCount, 16, 28);
             
             // 繪製圓形（根據 boost 狀態調整顏色和大小）
             if (isBoosting) {
@@ -170,7 +224,7 @@ public class CircleFollowsMouse extends JFrame {
                 System.out.println("Engine Boost!");
                 
                 // 0.2 秒後還原
-                Timer boostTimer = new Timer(200, event -> {
+                javax.swing.Timer boostTimer = new javax.swing.Timer(200, event -> {
                     isBoosting = false;
                     repaint();
                 });
@@ -196,6 +250,6 @@ public class CircleFollowsMouse extends JFrame {
 
     public static void main(String[] args) {
         // 在事件調度執行緒中建立 GUI
-        SwingUtilities.invokeLater(() -> new CircleFollowsMouse());
+        SwingUtilities.invokeLater(() -> new week2_CircleFollowsMouse());
     }
 }
