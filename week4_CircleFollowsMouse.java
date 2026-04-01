@@ -1,18 +1,19 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionListener;
+import java.awt.event.MouseListener;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Random;
 
-public class week3_CircleFollowsMouse extends JFrame {
+public class week4_CircleFollowsMouse extends JFrame {
     private CirclePanel circlePanel;
 
-    public week3_CircleFollowsMouse() {
+    public week4_CircleFollowsMouse() {
         // 設定視窗標題
-        setTitle("Circle Follows Mouse");
+        setTitle("Circle - Keyboard Control");
         
         // 設定視窗大小
         setSize(800, 600);
@@ -189,17 +190,22 @@ public class week3_CircleFollowsMouse extends JFrame {
     }
 
     // 內部類別：繪製圓形的面板
-    class CirclePanel extends JPanel implements MouseMotionListener {
+    class CirclePanel extends JPanel implements MouseListener {
         // 紅球當前位置（使用 double 以支援平滑移動）
         private double circleX = 400;
         private double circleY = 300;
         
-        // 滑鼠目標位置
-        private int targetX = 400;
-        private int targetY = 300;
-        
         private final int CIRCLE_RADIUS = 20;
-        private final double EASING_FACTOR = 0.1; // 緩動係數（0-1），越小越慢
+        /** 按住方向鍵時每幀移動像素 */
+        private final double MOVE_SPEED = 6.0;
+        /** 畫面上同時存在的子彈上限 */
+        private static final int MAX_BULLETS = 3;
+        private boolean leftKeyHeld;
+        private boolean rightKeyHeld;
+        private boolean upKeyHeld;
+        private boolean downKeyHeld;
+        /** 避免按住空白鍵時系統重複 keyPressed 連發 */
+        private boolean spaceKeyHeld;
         
         // 星點列表
         private ArrayList<Star> stars;
@@ -210,17 +216,53 @@ public class week3_CircleFollowsMouse extends JFrame {
         private int score = 0;
         private javax.swing.Timer gameTimer;
         private boolean gameOver = false; // 遊戲結束狀態
+        private boolean paused = false; // 暫停狀態
 
         public CirclePanel() {
             // 設定黑色背景
             setBackground(Color.BLACK);
-            
-            // 加入滑鼠移動監聽器
-            addMouseMotionListener(this);
-            addMouseListener(new MouseAdapter() {
+            setFocusable(true);
+            addMouseListener(this);
+            addKeyListener(new KeyAdapter() {
                 @Override
-                public void mousePressed(MouseEvent e) {
-                    shootBullet();
+                public void keyPressed(KeyEvent e) {
+                    int code = e.getKeyCode();
+                    if (code == KeyEvent.VK_LEFT) {
+                        leftKeyHeld = true;
+                    } else if (code == KeyEvent.VK_RIGHT) {
+                        rightKeyHeld = true;
+                    } else if (code == KeyEvent.VK_UP) {
+                        upKeyHeld = true;
+                    } else if (code == KeyEvent.VK_DOWN) {
+                        downKeyHeld = true;
+                    } else if (code == KeyEvent.VK_SPACE) {
+                        if (!spaceKeyHeld) {
+                            spaceKeyHeld = true;
+                            shootBullet();
+                        }
+                    } else if (code == KeyEvent.VK_P) {
+                        if (!gameOver) {
+                            paused = !paused;
+                        }
+                    } else if (code == KeyEvent.VK_R) {
+                        resetGame();
+                    }
+                }
+
+                @Override
+                public void keyReleased(KeyEvent e) {
+                    int code = e.getKeyCode();
+                    if (code == KeyEvent.VK_LEFT) {
+                        leftKeyHeld = false;
+                    } else if (code == KeyEvent.VK_RIGHT) {
+                        rightKeyHeld = false;
+                    } else if (code == KeyEvent.VK_UP) {
+                        upKeyHeld = false;
+                    } else if (code == KeyEvent.VK_DOWN) {
+                        downKeyHeld = false;
+                    } else if (code == KeyEvent.VK_SPACE) {
+                        spaceKeyHeld = false;
+                    }
                 }
             });
             
@@ -243,27 +285,47 @@ public class week3_CircleFollowsMouse extends JFrame {
                 repaint();
             });
             gameTimer.start();
+            // 讓面板取得鍵盤焦點（需先點一下視窗或面板）
+            SwingUtilities.invokeLater(this::requestFocusInWindow);
         }
 
         private void updateGame() {
-            if (gameOver) return; // 遊戲已結束，不再更新
+            if (gameOver || paused) return;
             
             frameCount++;
 
-            // 更新紅球位置，使用緩動公式實現慣性跟隨
-            double dx = targetX - circleX;
-            double dy = targetY - circleY;
-            
-            circleX += dx * EASING_FACTOR;
-            circleY += dy * EASING_FACTOR;
-            
-            // 邊界判斷：限制紅球在左右邊界內
+            // 方向鍵控制紅球在畫面內移動
             int panelWidth = getWidth();
+            int panelHeight = getHeight();
+            double moveX = 0;
+            if (leftKeyHeld) {
+                moveX -= MOVE_SPEED;
+            }
+            if (rightKeyHeld) {
+                moveX += MOVE_SPEED;
+            }
+            circleX += moveX;
+            double moveY = 0;
+            if (upKeyHeld) {
+                moveY -= MOVE_SPEED;
+            }
+            if (downKeyHeld) {
+                moveY += MOVE_SPEED;
+            }
+            circleY += moveY;
             if (circleX - CIRCLE_RADIUS < 0) {
                 circleX = CIRCLE_RADIUS;
             }
-            if (circleX + CIRCLE_RADIUS > panelWidth) {
+            if (panelWidth > 0 && circleX + CIRCLE_RADIUS > panelWidth) {
                 circleX = panelWidth - CIRCLE_RADIUS;
+            }
+            if (panelHeight > 0) {
+                if (circleY - CIRCLE_RADIUS < 0) {
+                    circleY = CIRCLE_RADIUS;
+                }
+                if (circleY + CIRCLE_RADIUS > panelHeight) {
+                    circleY = panelHeight - CIRCLE_RADIUS;
+                }
             }
             
             // 更新所有星點的位置
@@ -287,6 +349,9 @@ public class week3_CircleFollowsMouse extends JFrame {
 
         private void shootBullet() {
             if (gameOver) {
+                return;
+            }
+            if (bullets.size() >= MAX_BULLETS) {
                 return;
             }
             bullets.add(new Bullet(circleX, circleY - CIRCLE_RADIUS));
@@ -349,7 +414,6 @@ public class week3_CircleFollowsMouse extends JFrame {
             int meteorRadius = meteor.size / 2;
             if (distance < CIRCLE_RADIUS + meteorRadius) {
                 gameOver = true;
-                gameTimer.stop();
                 return;
             }
             
@@ -362,7 +426,32 @@ public class week3_CircleFollowsMouse extends JFrame {
             int bouncingRadius = bouncingMeteor.size / 2;
             if (distance < CIRCLE_RADIUS + bouncingRadius) {
                 gameOver = true;
-                gameTimer.stop();
+            }
+        }
+
+        private void resetGame() {
+            int panelWidth = Math.max(getWidth(), 1);
+            int panelHeight = Math.max(getHeight(), 1);
+
+            circleX = panelWidth / 2.0;
+            circleY = panelHeight - 80.0;
+            frameCount = 0;
+            score = 0;
+            gameOver = false;
+            paused = false;
+
+            leftKeyHeld = false;
+            rightKeyHeld = false;
+            upKeyHeld = false;
+            downKeyHeld = false;
+            spaceKeyHeld = false;
+
+            bullets.clear();
+            meteor = new Meteor(panelWidth);
+            bouncingMeteor = new BouncingMeteor(panelWidth, panelHeight);
+
+            if (!gameTimer.isRunning()) {
+                gameTimer.start();
             }
         }
 
@@ -397,6 +486,10 @@ public class week3_CircleFollowsMouse extends JFrame {
             g2d.setFont(new Font("Monospaced", Font.BOLD, 18));
             g2d.drawString("Frame: " + frameCount, 16, 28);
             g2d.drawString("Score: " + score, 16, 54);
+            String statusText = gameOver ? "Status: GAME OVER"
+                    : (paused ? "Status: PAUSED" : "Status: RUNNING");
+            g2d.drawString(statusText, 16, 80);
+            g2d.drawString("P: Pause  R: Restart", 16, 106);
             
             // 繪製紅球
             g2d.setColor(Color.RED);
@@ -426,23 +519,26 @@ public class week3_CircleFollowsMouse extends JFrame {
         }
 
         @Override
-        public void mouseMoved(MouseEvent e) {
-            // 更新目標位置
-            targetX = e.getX();
-            targetY = e.getY();
+        public void mouseClicked(MouseEvent e) { }
+
+        @Override
+        public void mousePressed(MouseEvent e) {
+            requestFocusInWindow();
         }
 
         @Override
-        public void mouseDragged(MouseEvent e) {
-            // 也處理拖曳事件
-            targetX = e.getX();
-            targetY = e.getY();
-        }
+        public void mouseReleased(MouseEvent e) { }
+
+        @Override
+        public void mouseEntered(MouseEvent e) { }
+
+        @Override
+        public void mouseExited(MouseEvent e) { }
 
     }
 
     public static void main(String[] args) {
         // 在事件調度執行緒中建立 GUI
-        SwingUtilities.invokeLater(() -> new week3_CircleFollowsMouse());
+        SwingUtilities.invokeLater(() -> new week4_CircleFollowsMouse());
     }
 }
