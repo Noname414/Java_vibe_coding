@@ -8,10 +8,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Random;
 
-public class week4_CircleFollowsMouse extends JFrame {
+public class CircleFollowsMouse extends JFrame {
     private CirclePanel circlePanel;
 
-    public week4_CircleFollowsMouse() {
+    public CircleFollowsMouse() {
         // 設定視窗標題
         setTitle("Circle - Keyboard Control");
         
@@ -539,6 +539,6 @@ public class week4_CircleFollowsMouse extends JFrame {
 
     public static void main(String[] args) {
         // 在事件調度執行緒中建立 GUI
-        SwingUtilities.invokeLater(() -> new week4_CircleFollowsMouse());
+        SwingUtilities.invokeLater(() -> new CircleFollowsMouse());
     }
 }
